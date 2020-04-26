@@ -14,6 +14,7 @@ import (
 	"runtime"
 	"syscall/js"
 	"unsafe"
+	"log"
 )
 
 var ContextWatcher contextWatcher
@@ -799,5 +800,6 @@ func VertexAttribPointer(dst Attrib, size int, ty Enum, normalized bool, stride,
 }
 
 func Viewport(x, y, width, height int) {
+	log.Println("Viewport: ", x, y, width, height)
 	c.Call("viewport", x, y, width, height)
 }
