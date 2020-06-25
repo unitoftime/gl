@@ -85,7 +85,7 @@ import "C"
 import (
 	"runtime"
 
-	"github.com/goxjs/gl"
+	"github.com/jstewart7/gl"
 )
 
 type contextGL struct {

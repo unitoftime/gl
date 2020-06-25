@@ -39,7 +39,7 @@ import "C"
 import (
 	"runtime"
 
-	"github.com/goxjs/gl"
+	"github.com/jstewart7/gl"
 )
 
 // contextGL holds a copy of the OpenGL Context from thread-local storage.

@@ -20,8 +20,8 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/goxjs/gl"
-	"github.com/goxjs/gl/glutil"
+	"github.com/jstewart7/gl"
+	"github.com/jstewart7/gl/glutil"
 	"golang.org/x/mobile/event/size"
 	"golang.org/x/mobile/exp/f32"
 	"golang.org/x/mobile/geom"
