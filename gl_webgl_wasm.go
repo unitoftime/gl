@@ -141,6 +141,47 @@ func SliceToTypedArray(s interface{}) js.Value {
 // c is the current WebGL context, or nil if there is no current context.
 var c js.Value
 
+
+func GenVertexArrays() Buffer {
+	return Buffer{Value: c.Call("createVertexArray")}
+}
+
+// TODO: right now I force you to make them 1 at a time
+func GenBuffers() Buffer {
+	return CreateBuffer()
+}
+
+func BindVertexArray(b Buffer) {
+	c.Call("bindVertexArray", b)
+	//	gl.BindVertexArray(b.Value)
+}
+
+func DeleteBuffers(v Buffer) {
+	c.Call("deleteBuffers", v)
+	//	gl.DeleteBuffers(1, &v.Value)
+}
+
+func DeleteVertexArrays(v Buffer) {
+	c.Call("deleteVertexArrays", 1, v)
+	//	gl.DeleteVertexArrays(1, &v.Value)
+}
+
+func BufferData(target Enum, size int, data interface{}, usage Enum) {
+	c.Call("bufferData", int(target), SliceToTypedArray(data), int(usage))
+// 	c.Call("bufferData", int(target), SliceToTypedArray(data), int(usage))
+	//	gl.BufferData(uint32(target), size, data, uint32(usage))
+}
+
+// func PtrOffset(offset int) unsafe.Pointer {
+// 	return gl.PtrOffset(offset)
+// }
+
+// func Ptr(data interface{}) unsafe.Pointer {
+// 	return gl.Ptr(data)
+// }
+
+
+
 func ActiveTexture(texture Enum) {
 	c.Call("activeTexture", int(texture))
 }
@@ -189,9 +230,9 @@ func BlendFuncSeparate(sfactorRGB, dfactorRGB, sfactorAlpha, dfactorAlpha Enum) 
 	c.Call("blendFuncSeparate", int(sfactorRGB), int(dfactorRGB), int(sfactorAlpha), int(dfactorAlpha))
 }
 
-func BufferData(target Enum, data interface{}, usage Enum) {
-	c.Call("bufferData", int(target), SliceToTypedArray(data), int(usage))
-}
+// func BufferData(target Enum, data interface{}, usage Enum) {
+// 	c.Call("bufferData", int(target), SliceToTypedArray(data), int(usage))
+// }
 
 func BufferInit(target Enum, size int, usage Enum) {
 	c.Call("bufferData", int(target), size, int(usage))

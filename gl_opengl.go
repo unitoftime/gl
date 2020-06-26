@@ -30,6 +30,48 @@ func (cw *contextWatcher) OnMakeCurrent(context interface{}) {
 }
 func (contextWatcher) OnDetach() {}
 
+// TODO: right now I force you to make them 1 at a time
+func GenVertexArrays() Buffer {
+	var b Buffer
+	gl.GenVertexArrays(1, &b.Value)
+	return b
+}
+
+// TODO: right now I force you to make them 1 at a time
+func GenBuffers() Buffer {
+	return CreateBuffer()
+}
+
+func BindVertexArray(b Buffer) {
+	gl.BindVertexArray(b.Value)
+}
+
+func DeleteBuffers(v Buffer) {
+	gl.DeleteBuffers(1, &v.Value)
+}
+
+func DeleteVertexArrays(v Buffer) {
+	gl.DeleteVertexArrays(1, &v.Value)
+}
+
+func BufferData(target Enum, size int, data interface{}, usage Enum) {
+	gl.BufferData(uint32(target), size, gl.Ptr(data), uint32(usage))
+}
+
+// func PtrOffset(offset int) unsafe.Pointer {
+// 	return gl.PtrOffset(offset)
+// }
+
+func Ptr(data interface{}) unsafe.Pointer {
+	return gl.Ptr(data)
+}
+
+// gl.VertexAttribPointer(uint32(loc), int32(vectorSize), gl.FLOAT, false, int32(vectorSize * componentSize), gl.PtrOffset(offset))
+func VertexAttribPointer(dst Attrib, size int, ty Enum, normalized bool, stride int, offset int) {
+	gl.VertexAttribPointer(uint32(dst.Value), int32(size), uint32(ty), normalized, int32(stride), gl.PtrOffset(offset))
+}
+
+
 // ActiveTexture sets the active texture unit.
 //
 // http://www.khronos.org/opengles/sdk/docs/man3/html/glActiveTexture.xhtml
@@ -118,9 +160,9 @@ func BlendFuncSeparate(sfactorRGB, dfactorRGB, sfactorAlpha, dfactorAlpha Enum) 
 // BufferData creates a new data store for the bound buffer object.
 //
 // http://www.khronos.org/opengles/sdk/docs/man3/html/glBufferData.xhtml
-func BufferData(target Enum, src []byte, usage Enum) {
-	gl.BufferData(uint32(target), int(len(src)), gl.Ptr(&src[0]), uint32(usage))
-}
+// func BufferData(target Enum, src []byte, usage Enum) {
+// 	gl.BufferData(uint32(target), int(len(src)), gl.Ptr(&src[0]), uint32(usage))
+// }
 
 // BufferInit creates a new unitialized data store for the bound buffer object.
 //
@@ -1193,9 +1235,9 @@ func VertexAttrib4fv(dst Attrib, src []float32) {
 // consecutive vertex attributes.
 //
 // http://www.khronos.org/opengles/sdk/docs/man3/html/glVertexAttribPointer.xhtml
-func VertexAttribPointer(dst Attrib, size int, ty Enum, normalized bool, stride, offset int) {
-	gl.VertexAttribPointer(uint32(dst.Value), int32(size), uint32(ty), normalized, int32(stride), gl.PtrOffset(offset))
-}
+// func VertexAttribPointer(dst Attrib, size int, ty Enum, normalized bool, stride, offset int) {
+// 	gl.VertexAttribPointer(uint32(dst.Value), int32(size), uint32(ty), normalized, int32(stride), gl.PtrOffset(offset))
+// }
 
 // Viewport sets the viewport, an affine transformation that
 // normalizes device coordinates to window coordinates.
