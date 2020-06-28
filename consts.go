@@ -31,7 +31,14 @@ format, which is covered by the license:
 
 */
 
+// TODO - regenerate these? for webgl2
+// https://www.khronos.org/registry/webgl/specs/latest/2.0/#3.7
 const (
+	DEPTH_COMPONENT24                             = 0x81A6;
+	DEPTH_COMPONENT32F                           = 0x8CAC;
+	TEXTURE_BORDER_COLOR = 0x1004
+	// CLAMP_TO_BORDER = 0x812D // TODO - this isn't supported by webgl, using clamp_to_edge instead
+
 	POINTS                                       = 0x0000
 	LINES                                        = 0x0001
 	LINE_LOOP                                    = 0x0002

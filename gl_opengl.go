@@ -62,8 +62,16 @@ func BufferData(target Enum, size int, data interface{}, usage Enum) {
 // 	return gl.PtrOffset(offset)
 // }
 
-func Ptr(data interface{}) unsafe.Pointer {
-	return gl.Ptr(data)
+// func Ptr(data interface{}) unsafe.Pointer {
+// 	return gl.Ptr(data)
+// }
+
+func DrawBuffer(target Enum) {
+	gl.DrawBuffer(uint32(target))
+}
+
+func ReadBuffer(target Enum) {
+	gl.ReadBuffer(uint32(target))
 }
 
 // gl.VertexAttribPointer(uint32(loc), int32(vectorSize), gl.FLOAT, false, int32(vectorSize * componentSize), gl.PtrOffset(offset))
@@ -964,6 +972,14 @@ func TexImage2D(target Enum, level int, width, height int, format Enum, ty Enum,
 		p = gl.Ptr(&data[0])
 	}
 	gl.TexImage2D(uint32(target), int32(level), int32(format), int32(width), int32(height), 0, uint32(format), uint32(ty), p)
+}
+
+func TexImage2DFull(target Enum, level int, format1 Enum, width, height int, format Enum, ty Enum, data []byte) {
+	p := unsafe.Pointer(nil)
+	if len(data) > 0 {
+		p = gl.Ptr(&data[0])
+	}
+	gl.TexImage2D(uint32(target), int32(level), int32(format1), int32(width), int32(height), 0, uint32(format), uint32(ty), p)
 }
 
 // TexSubImage2D writes a subregion of a 2D texture image.

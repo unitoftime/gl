@@ -180,6 +180,17 @@ func BufferData(target Enum, size int, data interface{}, usage Enum) {
 // 	return gl.Ptr(data)
 // }
 
+func DrawBuffer(target Enum) {
+	// TODO - revisit, for some reason drawBuffers here takes an array of ints
+	slice := []int32{int32(target)}
+	c.Call("drawBuffers", SliceToTypedArray(slice))
+	//	gl.DrawBuffer(uint32(target))
+}
+
+func ReadBuffer(target Enum) {
+	c.Call("readBuffer", int(target))
+	//	gl.ReadBuffer(uint32(target))
+}
 
 
 func ActiveTexture(texture Enum) {
@@ -391,7 +402,7 @@ func FramebufferRenderbuffer(target, attachment, rbTarget Enum, rb Renderbuffer)
 }
 
 func FramebufferTexture2D(target, attachment, texTarget Enum, t Texture, level int) {
-	c.Call("framebufferTexture2D", target, attachment, int(texTarget), t.Value, level)
+	c.Call("framebufferTexture2D", int(target), int(attachment), int(texTarget), t.Value, level)
 }
 
 func FrontFace(mode Enum) {
@@ -689,6 +700,11 @@ func TexImage2D(target Enum, level int, width, height int, format Enum, ty Enum,
 	c.Call("texImage2D", int(target), level, int(format), width, height, 0, int(format), int(ty), SliceToTypedArray(data))
 }
 
+func TexImage2DFull(target Enum, level int, format1 Enum, width, height int, format Enum, ty Enum, data interface{}) {
+	c.Call("texImage2D", int(target), level, int(format1), width, height, 0, int(format), int(ty), SliceToTypedArray(data))
+}
+
+
 func TexSubImage2D(target Enum, level int, x, y, width, height int, format, ty Enum, data interface{}) {
 	c.Call("texSubImage2D", int(target), level, x, y, width, height, format, int(ty), SliceToTypedArray(data))
 }
@@ -720,7 +736,7 @@ func Uniform1f(dst Uniform, v float32) {
 }
 
 func Uniform1fv(dst Uniform, src []float32) {
-	c.Call("uniform1fv", dst.Value, src)
+	c.Call("uniform1fv", dst.Value, SliceToTypedArray(src))
 }
 
 func Uniform1i(dst Uniform, v int) {
@@ -752,7 +768,7 @@ func Uniform3f(dst Uniform, v0, v1, v2 float32) {
 }
 
 func Uniform3fv(dst Uniform, src []float32) {
-	c.Call("uniform3fv", dst.Value, src)
+	c.Call("uniform3fv", dst.Value, SliceToTypedArray(src))
 }
 
 func Uniform3i(dst Uniform, v0, v1, v2 int32) {
@@ -768,7 +784,7 @@ func Uniform4f(dst Uniform, v0, v1, v2, v3 float32) {
 }
 
 func Uniform4fv(dst Uniform, src []float32) {
-	c.Call("uniform4fv", dst.Value, src)
+	c.Call("uniform4fv", dst.Value, SliceToTypedArray(src)) // TODO - I think probably most uniforms need this
 }
 
 func Uniform4i(dst Uniform, v0, v1, v2, v3 int32) {
