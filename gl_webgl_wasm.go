@@ -192,6 +192,10 @@ func ReadBuffer(target Enum) {
 	//	gl.ReadBuffer(uint32(target))
 }
 
+func PolygonMode(face, mode Enum) {
+	fmt.Println("Error: PolygonMode not supported in webgl")
+}
+
 
 func ActiveTexture(texture Enum) {
 	c.Call("activeTexture", int(texture))

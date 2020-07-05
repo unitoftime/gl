@@ -34,6 +34,9 @@ format, which is covered by the license:
 // TODO - regenerate these? for webgl2
 // https://www.khronos.org/registry/webgl/specs/latest/2.0/#3.7
 const (
+	LINE                                                       = 0x1B01
+	FILL                                                       = 0x1B02
+
 	DEPTH_COMPONENT24                             = 0x81A6;
 	DEPTH_COMPONENT32F                           = 0x8CAC;
 	TEXTURE_BORDER_COLOR = 0x1004

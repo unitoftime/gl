@@ -79,6 +79,9 @@ func VertexAttribPointer(dst Attrib, size int, ty Enum, normalized bool, stride 
 	gl.VertexAttribPointer(uint32(dst.Value), int32(size), uint32(ty), normalized, int32(stride), gl.PtrOffset(offset))
 }
 
+func PolygonMode(face, mode Enum) {
+	gl.PolygonMode(uint32(face), uint32(mode))
+}
 
 // ActiveTexture sets the active texture unit.
 //
