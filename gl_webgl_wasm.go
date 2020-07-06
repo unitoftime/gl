@@ -157,12 +157,12 @@ func BindVertexArray(b Buffer) {
 }
 
 func DeleteBuffers(v Buffer) {
-	c.Call("deleteBuffers", v)
+	c.Call("deleteBuffer", v)
 	//	gl.DeleteBuffers(1, &v.Value)
 }
 
 func DeleteVertexArrays(v Buffer) {
-	c.Call("deleteVertexArrays", 1, v)
+	c.Call("deleteVertexArray", v)
 	//	gl.DeleteVertexArrays(1, &v.Value)
 }
 
