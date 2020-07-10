@@ -193,7 +193,7 @@ func ReadBuffer(target Enum) {
 }
 
 func PolygonMode(face, mode Enum) {
-	fmt.Println("Error: PolygonMode not supported in webgl")
+	//	fmt.Println("Error: PolygonMode not supported in webgl")
 }
 
 
