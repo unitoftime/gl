@@ -859,6 +859,10 @@ func VertexAttribPointer(dst Attrib, size int, ty Enum, normalized bool, stride,
 	c.Call("vertexAttribPointer", dst.Value, size, int(ty), normalized, stride, offset)
 }
 
+func VertexAttribIPointer(dst Attrib, size int, ty Enum, stride, offset int) {
+	c.Call("vertexAttribIPointer", dst.Value, size, int(ty), stride, offset)
+}
+
 func Viewport(x, y, width, height int) {
 	c.Call("viewport", x, y, width, height)
 }

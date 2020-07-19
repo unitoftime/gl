@@ -7,7 +7,8 @@ import (
 	"strings"
 	"unsafe"
 
-	"github.com/go-gl/gl/v2.1/gl"
+	//	"github.com/go-gl/gl/v2.1/gl"
+	"github.com/go-gl/gl/v3.3-core/gl"
 )
 
 // ContextWatcher is this library's context watcher, satisfying glfw.ContextWatcher interface.
@@ -77,6 +78,10 @@ func ReadBuffer(target Enum) {
 // gl.VertexAttribPointer(uint32(loc), int32(vectorSize), gl.FLOAT, false, int32(vectorSize * componentSize), gl.PtrOffset(offset))
 func VertexAttribPointer(dst Attrib, size int, ty Enum, normalized bool, stride int, offset int) {
 	gl.VertexAttribPointer(uint32(dst.Value), int32(size), uint32(ty), normalized, int32(stride), gl.PtrOffset(offset))
+}
+
+func VertexAttribIPointer(dst Attrib, size int, ty Enum, stride int, offset int) {
+	gl.VertexAttribIPointer(uint32(dst.Value), int32(size), uint32(ty), int32(stride), gl.PtrOffset(offset))
 }
 
 func PolygonMode(face, mode Enum) {
