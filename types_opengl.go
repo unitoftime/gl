@@ -46,6 +46,12 @@ type Uniform struct {
 	Value int32
 }
 
+type Object struct {
+	Value uint32
+}
+
+var NoObject = Object{0}
+
 var NoAttrib = Attrib{0}
 var NoProgram = Program{0}
 var NoShader = Shader{0}

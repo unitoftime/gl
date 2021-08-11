@@ -19,6 +19,12 @@ type contextWatcher struct {
 	initGL bool
 }
 
+// TODO - hack for testing glhf
+func Init() error {
+	ContextWatcher.OnMakeCurrent(nil)
+	return nil
+}
+
 func (cw *contextWatcher) OnMakeCurrent(context interface{}) {
 	if !cw.initGL {
 		// Initialise gl bindings using the current context.
@@ -57,6 +63,11 @@ func DeleteVertexArrays(v Buffer) {
 
 func BufferData(target Enum, size int, data interface{}, usage Enum) {
 	gl.BufferData(uint32(target), size, gl.Ptr(data), uint32(usage))
+}
+
+func BlitFramebuffer(srcX0 int32, srcY0 int32, srcX1 int32, srcY1 int32, dstX0 int32, dstY0 int32, dstX1 int32, dstY1 int32, mask uint32, filter uint32) {
+	panic("Not supported!") // TODO
+//	gl.BlitFrameBuffer(srcX0 int32, srcY0 int32, srcX1 int32, srcY1 int32, dstX0 int32, dstY0 int32, dstX1 int32, dstY1 int32, mask uint32, filter uint32)
 }
 
 // func PtrOffset(offset int) unsafe.Pointer {
