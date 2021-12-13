@@ -172,6 +172,11 @@ func BufferData(target Enum, size int, data interface{}, usage Enum) {
 	//	gl.BufferData(uint32(target), size, data, uint32(usage))
 }
 
+func BlitFramebuffer(srcX0 int32, srcY0 int32, srcX1 int32, srcY1 int32, dstX0 int32, dstY0 int32, dstX1 int32, dstY1 int32, mask uint32, filter uint32) {
+	panic("Not supported!") // TODO
+//	gl.BlitFrameBuffer(srcX0 int32, srcY0 int32, srcX1 int32, srcY1 int32, dstX0 int32, dstY0 int32, dstX1 int32, dstY1 int32, mask uint32, filter uint32)
+}
+
 // func PtrOffset(offset int) unsafe.Pointer {
 // 	return gl.PtrOffset(offset)
 // }
@@ -255,6 +260,23 @@ func BufferInit(target Enum, size int, usage Enum) {
 
 func BufferSubData(target Enum, offset int, data interface{}) {
 	c.Call("bufferSubData", int(target), offset, SliceToTypedArray(data))
+}
+
+func GetBufferSubData(target Enum, offset int, data interface{}) {
+	c.Call("getBufferSubData", int(target), offset, SliceToTypedArray(data))
+	// size := 0
+	// // TODO - other types
+	// switch t := data.(type) {
+	// case *[]float32:
+	// 	size = len(*t) * 4
+	// 	c.Call("getBufferSubData", int(target), offset, SliceToTypedArray(data))
+	// 	// gl.GetBufferSubData(uint32(target), offset, size, gl.Ptr(*t))
+	// case *[]byte:
+	// 	size = len(*t)
+	// 	gl.GetBufferSubData(uint32(target), offset, size, gl.Ptr(*t))
+	// default:
+	// 	panic("Invalid data type!")
+	// }
 }
 
 func CheckFramebufferStatus(target Enum) Enum {
@@ -466,9 +488,13 @@ func GetIntegerv(pname Enum, data []int32) {
 	}
 }
 
-func GetInteger(pname Enum) int {
-	return c.Call("getParameter", int(pname)).Int()
+// func GetInteger(pname Enum) int {
+// 	return c.Call("getParameter", int(pname)).Int()
+// }
+func GetInteger(pname Enum) Object {
+	return Object{c.Call("getParameter", int(pname))}
 }
+
 
 func GetBufferParameteri(target, pname Enum) int {
 	return c.Call("getBufferParameter", int(target), int(pname)).Int()

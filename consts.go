@@ -37,14 +37,15 @@ const (
 	LINE                                                       = 0x1B01
 	FILL                                                       = 0x1B02
 
-	DEPTH_COMPONENT24                             = 0x81A6;
-	DEPTH_COMPONENT32F                           = 0x8CAC;
-	TEXTURE_BORDER_COLOR = 0x1004
-	READ_FRAMEBUFFER                             = 0x8CA8;
-	DRAW_FRAMEBUFFER                             = 0x8CA9;
-	READ_FRAMEBUFFER_BINDING                     = 0x8CAA;
-	DRAW_FRAMEBUFFER_BINDING                     = 0x8CA6; /* Same as FRAMEBUFFER_BINDING */
+	DEPTH_COMPONENT24                            = 0x81A6
+	DEPTH_COMPONENT32F                           = 0x8CAC
+	TEXTURE_BORDER_COLOR                         = 0x1004
+	READ_FRAMEBUFFER                             = 0x8CA8
+	DRAW_FRAMEBUFFER                             = 0x8CA9
+	READ_FRAMEBUFFER_BINDING                     = 0x8CAA
+	DRAW_FRAMEBUFFER_BINDING                     = 0x8CA6 /* Same as FRAMEBUFFER_BINDING */
 	// CLAMP_TO_BORDER = 0x812D // TODO - this isn't supported by webgl, using clamp_to_edge instead
+	VERTEX_ARRAY_BINDING                         = 0x85B5
 
 	POINTS                                       = 0x0000
 	LINES                                        = 0x0001

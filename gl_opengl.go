@@ -6,6 +6,7 @@ import (
 	"log"
 	"strings"
 	"unsafe"
+	// "math/f32"
 
 	//	"github.com/go-gl/gl/v2.1/gl"
 	"github.com/go-gl/gl/v3.3-core/gl"
@@ -15,19 +16,21 @@ import (
 // It must be notified when context is made current or detached.
 var ContextWatcher = new(contextWatcher)
 
+// TODO - replace contextwatcher interface with something like 'Initer'
 type contextWatcher struct {
 	initGL bool
 }
 
 // TODO - hack for testing glhf
-func Init() error {
-	ContextWatcher.OnMakeCurrent(nil)
-	return nil
-}
+// func Init() {
+// 	ContextWatcher.OnMakeCurrent(nil)
+// 	return nil
+// }
 
 func (cw *contextWatcher) OnMakeCurrent(context interface{}) {
 	if !cw.initGL {
 		// Initialise gl bindings using the current context.
+		// log.Println("Initialize GL")
 		err := gl.Init()
 		if err != nil {
 			log.Fatalln("gl.Init:", err)
@@ -66,8 +69,7 @@ func BufferData(target Enum, size int, data interface{}, usage Enum) {
 }
 
 func BlitFramebuffer(srcX0 int32, srcY0 int32, srcX1 int32, srcY1 int32, dstX0 int32, dstY0 int32, dstX1 int32, dstY1 int32, mask uint32, filter uint32) {
-	panic("Not supported!") // TODO
-//	gl.BlitFrameBuffer(srcX0 int32, srcY0 int32, srcX1 int32, srcY1 int32, dstX0 int32, dstY0 int32, dstX1 int32, dstY1 int32, mask uint32, filter uint32)
+	gl.BlitFramebuffer(srcX0, srcY0, srcX1, srcY1, dstX0, dstY0, dstX1, dstY1, mask, filter)
 }
 
 // func PtrOffset(offset int) unsafe.Pointer {
@@ -201,8 +203,56 @@ func BufferInit(target Enum, size int, usage Enum) {
 // BufferSubData sets some of data in the bound buffer object.
 //
 // http://www.khronos.org/opengles/sdk/docs/man3/html/glBufferSubData.xhtml
-func BufferSubData(target Enum, offset int, data []byte) {
-	gl.BufferSubData(uint32(target), offset, int(len(data)), gl.Ptr(&data[0]))
+// func BufferSubData(target Enum, offset int, data []byte) {
+// 	gl.BufferSubData(uint32(target), offset, int(len(data)), gl.Ptr(&data[0]))
+// }
+
+func BufferSubData(target Enum, offset int, data interface{}) {
+	size := 0
+	// TODO - other types
+	switch t := data.(type) {
+	case []float32:
+		// log.Println("BufferSubData: float32")
+		size = len(t) * 4
+		gl.BufferSubData(uint32(target), offset, size, gl.Ptr(&t[0]))
+		return
+	case [][2]float32:
+		// log.Println("BufferSubData: [][2]float32")
+		size = len(t) * 4 * 2
+		gl.BufferSubData(uint32(target), offset, size, gl.Ptr(&t[0][0]))
+		return
+	case [][3]float32:
+		// log.Println("BufferSubData: [][3]float32")
+		size = len(t) * 4 * 3
+		gl.BufferSubData(uint32(target), offset, size, gl.Ptr(&t[0][0]))
+		return
+	case []byte:
+		size = len(t)
+		gl.BufferSubData(uint32(target), offset, size, gl.Ptr(&t[0]))
+		return
+	case []uint32:
+		size = len(t) * 4
+		gl.BufferSubData(uint32(target), offset, size, gl.Ptr(&t[0]))
+		return
+	default:
+		panic("Invalid data type!")
+	}
+	gl.BufferSubData(uint32(target), offset, size, gl.Ptr(data))
+}
+
+func GetBufferSubData(target Enum, offset int, data interface{}) {
+	size := 0
+	// TODO - other types
+	switch t := data.(type) {
+	case *[]float32:
+		size = len(*t) * 4
+		gl.GetBufferSubData(uint32(target), offset, size, gl.Ptr(*t))
+	case *[]byte:
+		size = len(*t)
+		gl.GetBufferSubData(uint32(target), offset, size, gl.Ptr(*t))
+	default:
+		panic("Invalid data type!")
+	}
 }
 
 // CheckFramebufferStatus reports the completeness status of the
@@ -602,10 +652,11 @@ func GetIntegerv(pname Enum, data []int32) {
 // GetInteger returns the int value of parameter pname.
 //
 // http://www.khronos.org/opengles/sdk/docs/man3/html/glGet.xhtml
-func GetInteger(pname Enum) int {
+func GetInteger(pname Enum) Object {
+// func GetInteger(pname Enum) int {
 	var data int32
 	gl.GetIntegerv(uint32(pname), &data)
-	return int(data)
+	return Object{uint32(data)}
 }
 
 // GetBufferParameteri returns a parameter for the active buffer.
@@ -694,7 +745,7 @@ func GetShaderInfoLog(s Shader) string {
 	var logLength int32
 	gl.GetShaderiv(s.Value, gl.INFO_LOG_LENGTH, &logLength)
 	if logLength == 0 {
-		return ""
+		return "No Log"
 	}
 
 	logBuffer := make([]uint8, logLength)
@@ -935,8 +986,10 @@ func Scissor(x, y, width, height int32) {
 //
 // http://www.khronos.org/opengles/sdk/docs/man3/html/glShaderSource.xhtml
 func ShaderSource(s Shader, src string) {
-	glsource, free := gl.Strs(src + "\x00")
-	gl.ShaderSource(s.Value, 1, glsource, nil)
+	// glsource, free := gl.Strs(src + "\x00")
+	glsource, free := gl.Strs(src)
+	length := int32(len(src))
+	gl.ShaderSource(s.Value, 1, glsource, &length)
 	free()
 }
 
@@ -1141,6 +1194,12 @@ func Uniform4f(dst Uniform, v0, v1, v2, v3 float32) {
 func Uniform4fv(dst Uniform, src []float32) {
 	gl.Uniform4fv(dst.Value, int32(len(src)/4), &src[0])
 }
+// func Uniform4fv(dst Uniform, src []float32) {
+// func Uniform4fv(dst Uniform, count int32, value *float32) {
+// 	gl.Uniform4fv(dst.Value, count, value)
+// 	// gl.Uniform4fv(dst.Value, int32(len(src)/4), &src[0])
+// }
+
 
 // Uniform4i writes an ivec4 uniform variable.
 //
@@ -1172,9 +1231,13 @@ func UniformMatrix2fv(dst Uniform, src []float32) {
 // Each matrix must be supplied in column major order.
 //
 // http://www.khronos.org/opengles/sdk/docs/man3/html/glUniform.xhtml
-func UniformMatrix3fv(dst Uniform, src []float32) {
-	gl.UniformMatrix3fv(dst.Value, int32(len(src)/(3*3)), false, &src[0])
+// func UniformMatrix3fv(dst Uniform, src []float32) {
+// 	gl.UniformMatrix3fv(dst.Value, int32(len(src)/(3*3)), false, &src[0])
+// }
+func UniformMatrix3fv(dst Uniform, count int32, transpose bool, value *float32) {
+	gl.UniformMatrix3fv(dst.Value, count, transpose, value)
 }
+
 
 // UniformMatrix4fv writes 4x4 matrices. Each matrix uses 16
 // float32 values, so the number of matrices written is len(src)/16.

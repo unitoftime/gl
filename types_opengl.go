@@ -50,6 +50,10 @@ type Object struct {
 	Value uint32
 }
 
+func (o Object) Equal(o2 Object) bool {
+	return o.Value == o2.Value
+}
+
 var NoObject = Object{0}
 
 var NoAttrib = Attrib{0}

@@ -42,6 +42,16 @@ type Uniform struct {
 	js.Value
 }
 
+type Object struct {
+	js.Value
+}
+
+func (o Object) Equal(o2 Object) bool {
+	return o.Value.Equal(o2.Value)
+}
+
+var NoObject = Object{js.Null()}
+
 var NoAttrib = Attrib{0}
 var NoProgram = Program{js.Null()}
 var NoShader = Shader{js.Null()}
