@@ -85,7 +85,7 @@ import "C"
 import (
 	"runtime"
 
-	"github.com/jstewart7/gl"
+	"github.com/unitoftime/gl"
 )
 
 type contextGL struct {

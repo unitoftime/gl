@@ -1,4 +1,4 @@
-module github.com/jstewart7/gl
+module github.com/unitoftime/gl
 
 go 1.14
 

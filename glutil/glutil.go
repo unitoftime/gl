@@ -8,7 +8,7 @@ package glutil
 import (
 	"fmt"
 
-	"github.com/jstewart7/gl"
+	"github.com/unitoftime/gl"
 )
 
 // CreateProgram creates, compiles, and links a gl.Program.
