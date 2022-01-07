@@ -16,6 +16,17 @@ import (
 	"unsafe"
 )
 
+// TODO - Cache all of the .Get("").Call("")s to improve performance? https://github.com/hajimehoshi/ebiten/blob/main/internal/graphicsdriver/opengl/gl_js.go
+
+// To prevent constantly reallocating the webgl arrays on javascript side, we just allocate one large-enough buffer and take subarrays from that when we need to copy data. Too many JS allocations was causing me to get this error: "panic: JavaScript error: Array buffer allocation failed"
+// TODO - Make this size configurable?
+var jsMemory js.Value
+func init() {
+	// TODO - Can I do something like this to avoid the extra copy?: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/WebAssembly/Memory
+	jsMemory = js.Global().Get("Uint8Array").New(16*1024*1024) // x * MB
+	runtime.KeepAlive(jsMemory)
+}
+
 var ContextWatcher contextWatcher
 
 type contextWatcher struct{}
@@ -87,48 +98,48 @@ func SliceToTypedArray(s interface{}) js.Value {
 
 	switch s := s.(type) {
 	case []int8:
-		a := js.Global().Get("Uint8Array").New(len(s))
+		a := jsMemory.Call("subarray", 0, len(s))
 		js.CopyBytesToJS(a, sliceToByteSlice(s))
 		runtime.KeepAlive(s)
 		buf := a.Get("buffer")
 		return js.Global().Get("Int8Array").New(buf, a.Get("byteOffset"), a.Get("byteLength"))
 	case []int16:
-		a := js.Global().Get("Uint8Array").New(len(s) * 2)
+		a := jsMemory.Call("subarray", 0, len(s) * 2)
 		js.CopyBytesToJS(a, sliceToByteSlice(s))
 		runtime.KeepAlive(s)
 		buf := a.Get("buffer")
 		return js.Global().Get("Int16Array").New(buf, a.Get("byteOffset"), a.Get("byteLength").Int()/2)
 	case []int32:
-		a := js.Global().Get("Uint8Array").New(len(s) * 4)
+		a := jsMemory.Call("subarray", 0, len(s) * 4)
 		js.CopyBytesToJS(a, sliceToByteSlice(s))
 		runtime.KeepAlive(s)
 		buf := a.Get("buffer")
 		return js.Global().Get("Int32Array").New(buf, a.Get("byteOffset"), a.Get("byteLength").Int()/4)
 	case []uint8:
-		a := js.Global().Get("Uint8Array").New(len(s))
+		a := jsMemory.Call("subarray", 0, len(s))
 		js.CopyBytesToJS(a, s)
 		runtime.KeepAlive(s)
 		return a
 	case []uint16:
-		a := js.Global().Get("Uint8Array").New(len(s) * 2)
+		a := jsMemory.Call("subarray", 0, len(s) * 2)
 		js.CopyBytesToJS(a, sliceToByteSlice(s))
 		runtime.KeepAlive(s)
 		buf := a.Get("buffer")
 		return js.Global().Get("Uint16Array").New(buf, a.Get("byteOffset"), a.Get("byteLength").Int()/2)
 	case []uint32:
-		a := js.Global().Get("Uint8Array").New(len(s) * 4)
+		a := jsMemory.Call("subarray", 0, len(s) * 4)
 		js.CopyBytesToJS(a, sliceToByteSlice(s))
 		runtime.KeepAlive(s)
 		buf := a.Get("buffer")
 		return js.Global().Get("Uint32Array").New(buf, a.Get("byteOffset"), a.Get("byteLength").Int()/4)
 	case []float32:
-		a := js.Global().Get("Uint8Array").New(len(s) * 4)
+		a := jsMemory.Call("subarray", 0, len(s) * 4)
 		js.CopyBytesToJS(a, sliceToByteSlice(s))
 		runtime.KeepAlive(s)
 		buf := a.Get("buffer")
 		return js.Global().Get("Float32Array").New(buf, a.Get("byteOffset"), a.Get("byteLength").Int()/4)
 	case []float64:
-		a := js.Global().Get("Uint8Array").New(len(s) * 8)
+		a := jsMemory.Call("subarray", 0, len(s) * 8)
 		js.CopyBytesToJS(a, sliceToByteSlice(s))
 		runtime.KeepAlive(s)
 		buf := a.Get("buffer")
@@ -152,17 +163,17 @@ func GenBuffers() Buffer {
 }
 
 func BindVertexArray(b Buffer) {
-	c.Call("bindVertexArray", b)
+	c.Call("bindVertexArray", b.Value)
 	//	gl.BindVertexArray(b.Value)
 }
 
-func DeleteBuffers(v Buffer) {
-	c.Call("deleteBuffer", v)
+func DeleteBuffers(b Buffer) {
+	c.Call("deleteBuffer", b.Value)
 	//	gl.DeleteBuffers(1, &v.Value)
 }
 
-func DeleteVertexArrays(v Buffer) {
-	c.Call("deleteVertexArray", v)
+func DeleteVertexArrays(b Buffer) {
+	c.Call("deleteVertexArray", b.Value)
 	//	gl.DeleteVertexArrays(1, &v.Value)
 }
 
