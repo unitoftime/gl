@@ -31,6 +31,12 @@ format, which is covered by the license:
 
 */
 
+// Desktop only
+// TODO - What would happen for unsupported cases (ie webgl)
+const (
+	MULTISAMPLE                                                = 0x809D
+)
+
 // TODO - regenerate these? for webgl2
 // https://www.khronos.org/registry/webgl/specs/latest/2.0/#3.7
 const (
