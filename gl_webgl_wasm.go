@@ -9,6 +9,7 @@ package gl
 import (
 	"encoding/binary"
 	"fmt"
+	"strings"
 	"math"
 	"reflect"
 	"runtime"
@@ -34,10 +35,32 @@ type contextWatcher struct{}
 func (contextWatcher) OnMakeCurrent(context interface{}) {
 	// context must be a WebGLRenderingContext js.Value.
 	c = context.(js.Value)
+
+	versionStr = GetString(VERSION)
+	fmt.Println("Version:", versionStr)
+
+	// Determine the webgl mode to operate in
+	if strings.HasPrefix(versionStr, "WebGL 1.0") {
+		fmt.Println("Switching to WebGL 1.0 mode")
+		webgl1Mode = true
+	} else {
+		if strings.HasPrefix(versionStr, "WebGL 2.0") {
+		fmt.Println("Switching to WebGL 2.0 mode")
+			webgl1Mode = false
+		} else {
+			fmt.Println("Was unable to determine webgl mode from version string! Sticking with webgl1 mode!")
+			webgl1Mode = true
+		}
+	}
 }
 func (contextWatcher) OnDetach() {
 	c = js.Null()
 }
+
+// c is the current WebGL context, or nil if there is no current context.
+var c js.Value
+var versionStr string
+var webgl1Mode bool
 
 func sliceToByteSlice(s interface{}) []byte {
 	switch s := s.(type) {
@@ -149,11 +172,10 @@ func SliceToTypedArray(s interface{}) js.Value {
 	}
 }
 
-// c is the current WebGL context, or nil if there is no current context.
-var c js.Value
-
-
 func GenVertexArrays() Buffer {
+	// if webgl1Mode {
+	// 	return CreateBuffer()
+	// }
 	return Buffer{Value: c.Call("createVertexArray")}
 }
 
@@ -163,8 +185,11 @@ func GenBuffers() Buffer {
 }
 
 func BindVertexArray(b Buffer) {
+	// if webgl1Mode {
+	// 	BindBuffer(ARRAY_BUFFER, b)
+	// 	return
+	// }
 	c.Call("bindVertexArray", b.Value)
-	//	gl.BindVertexArray(b.Value)
 }
 
 func DeleteBuffers(b Buffer) {
@@ -414,6 +439,7 @@ func DrawArrays(mode Enum, first, count int) {
 	c.Call("drawArrays", int(mode), first, count)
 }
 
+// TODO - webgl1 won't work until I change all calls to this to use UNSIGNED_BYTE or UNSIGNED_SHORT as the type (ty Enum). https://registry.khronos.org/OpenGL-Refpages/es2.0/xhtml/glDrawElements.xml
 func DrawElements(mode Enum, count int, ty Enum, offset int) {
 	c.Call("drawElements", int(mode), count, int(ty), offset)
 }
