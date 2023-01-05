@@ -412,7 +412,7 @@ func DeleteTexture(v Texture) {
 }
 
 func DepthFunc(fn Enum) {
-	c.Call("depthFunc", fn)
+	c.Call("depthFunc", int(fn))
 }
 
 func DepthMask(flag bool) {
