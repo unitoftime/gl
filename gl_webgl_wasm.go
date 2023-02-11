@@ -17,20 +17,72 @@ import (
 	"unsafe"
 )
 
+var (
+	object       = js.Global().Get("Object")
+	arrayBuffer  = js.Global().Get("ArrayBuffer")
+	uint8Array   = js.Global().Get("Uint8Array")
+	float32Array = js.Global().Get("Float32Array")
+	int32Array   = js.Global().Get("Int32Array")
+	uint32Array  = js.Global().Get("Uint32Array")
+)
+
+// --------------------------------------------------------------------------------
+
 // TODO - Cache all of the .Get("").Call("")s to improve performance? https://github.com/hajimehoshi/ebiten/blob/main/internal/graphicsdriver/opengl/gl_js.go
 
 // To prevent constantly reallocating the webgl arrays on javascript side, we just allocate one large-enough buffer and take subarrays from that when we need to copy data. Too many JS allocations was causing me to get this error: "panic: JavaScript error: Array buffer allocation failed"
 // TODO - Make this size configurable?
 var jsMemory js.Value
+var jsMemoryBuffer, jsMemoryFloat32, jsMemoryInt32, jsMemoryUint32 js.Value
+var jsMemoryBufferVec2, jsMemoryBufferVec3, jsMemoryBufferVec4 js.Value
+var jsMemoryBufferMat4 js.Value
 func init() {
 	// TODO - Can I do something like this to avoid the extra copy?: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/WebAssembly/Memory
-	jsMemory = js.Global().Get("Uint8Array").New(16*1024*1024) // x * MB
+	jsMemory = uint8Array.New(16*1024*1024) // x * MB
 	runtime.KeepAlive(jsMemory)
+
+	jsMemoryBuffer = jsMemory.Get("buffer")
+	jsMemoryFloat32 = float32Array.New(jsMemoryBuffer, jsMemoryBuffer.Get("byteOffset"), jsMemoryBuffer.Get("byteLength").Int()/4)
+	jsMemoryInt32 = int32Array.New(jsMemoryBuffer, jsMemoryBuffer.Get("byteOffset"), jsMemoryBuffer.Get("byteLength").Int()/4)
+	jsMemoryUint32 = uint32Array.New(jsMemoryBuffer, jsMemoryBuffer.Get("byteOffset"), jsMemoryBuffer.Get("byteLength").Int()/4)
+
+	jsMemoryBufferVec2 = jsMemoryFloat32.Call("subarray", 0, 2)
+	jsMemoryBufferVec3 = jsMemoryFloat32.Call("subarray", 0, 3)
+	jsMemoryBufferVec4 = jsMemoryFloat32.Call("subarray", 0, 4)
+	jsMemoryBufferMat4 = jsMemoryFloat32.Call("subarray", 0, 16)
 }
 
 var ContextWatcher contextWatcher
 
 type contextWatcher struct{}
+
+var (
+	fnBufferSubData js.Value
+	fnBufferData js.Value
+	fnBindVertexArray js.Value
+	fnCreateVertexArray js.Value
+	fnCreateBuffer js.Value
+	fnBindBuffer js.Value
+	fnBindTexture js.Value
+	fnGetAttribLocation js.Value
+	fnVertexAttribPointer js.Value
+	fnEnableVertexAttribArray js.Value
+	fnDeleteVertexArray js.Value
+	fnDeleteBuffer js.Value
+	fnDrawElements js.Value
+
+	fnEnable js.Value
+	fnDepthFunc js.Value
+	fnDisable js.Value
+
+	fnBindFramebuffer js.Value
+
+	fnUniformMatrix4fv js.Value
+	fnViewport js.Value
+
+	fnClear js.Value
+	fnClearColor js.Value
+)
 
 func (contextWatcher) OnMakeCurrent(context interface{}) {
 	// context must be a WebGLRenderingContext js.Value.
@@ -52,6 +104,29 @@ func (contextWatcher) OnMakeCurrent(context interface{}) {
 			webgl1Mode = true
 		}
 	}
+
+	fnBufferSubData = c.Get("bufferSubData").Call("bind", c)
+	fnBufferData = c.Get("bufferData").Call("bind", c)
+	fnBindVertexArray = c.Get("bindVertexArray").Call("bind", c)
+	fnCreateVertexArray = c.Get("createVertexArray").Call("bind", c)
+	fnCreateBuffer = c.Get("createBuffer").Call("bind", c)
+	fnBindBuffer = c.Get("bindBuffer").Call("bind", c)
+	fnBindTexture = c.Get("bindTexture").Call("bind", c)
+	fnGetAttribLocation = c.Get("getAttribLocation").Call("bind", c)
+	fnVertexAttribPointer = c.Get("vertexAttribPointer").Call("bind", c)
+	fnEnableVertexAttribArray = c.Get("enableVertexAttribArray").Call("bind", c)
+	fnDeleteVertexArray = c.Get("deleteVertexArray").Call("bind", c)
+	fnDeleteBuffer = c.Get("deleteBuffer").Call("bind", c)
+	fnDrawElements = c.Get("drawElements").Call("bind", c)
+	fnEnable = c.Get("enable").Call("bind", c)
+	fnDisable = c.Get("disable").Call("bind", c)
+	fnDepthFunc = c.Get("depthFunc").Call("bind", c)
+	fnUniformMatrix4fv = c.Get("uniformMatrix4fv").Call("bind", c)
+	fnBindFramebuffer = c.Get("bindFramebuffer").Call("bind", c)
+	fnViewport = c.Get("viewport").Call("bind", c)
+
+	fnClear = c.Get("clear").Call("bind", c)
+	fnClearColor = c.Get("clearColor").Call("bind", c)
 }
 func (contextWatcher) OnDetach() {
 	c = js.Null()
@@ -114,69 +189,86 @@ func sliceToByteSlice(s interface{}) []byte {
 	}
 }
 
-func SliceToTypedArray(s interface{}) js.Value {
+func SliceToTypedArray(s interface{}) (js.Value, int) {
 	if s == nil {
-		return js.Null()
+		return js.Null(), 0
 	}
 
+	// TODO - I commented out some of these b/c I didn't need them
 	switch s := s.(type) {
-	case []int8:
-		a := jsMemory.Call("subarray", 0, len(s))
-		js.CopyBytesToJS(a, sliceToByteSlice(s))
-		runtime.KeepAlive(s)
-		buf := a.Get("buffer")
-		return js.Global().Get("Int8Array").New(buf, a.Get("byteOffset"), a.Get("byteLength"))
-	case []int16:
-		a := jsMemory.Call("subarray", 0, len(s) * 2)
-		js.CopyBytesToJS(a, sliceToByteSlice(s))
-		runtime.KeepAlive(s)
-		buf := a.Get("buffer")
-		return js.Global().Get("Int16Array").New(buf, a.Get("byteOffset"), a.Get("byteLength").Int()/2)
+	// case []int8:
+	// 	a := jsMemory.Call("subarray", 0, len(s))
+	// 	js.CopyBytesToJS(a, sliceToByteSlice(s))
+	// 	runtime.KeepAlive(s)
+	// 	buf := a.Get("buffer")
+	// 	return js.Global().Get("Int8Array").New(buf, a.Get("byteOffset"), a.Get("byteLength"))
+	// case []int16:
+	// 	a := jsMemory.Call("subarray", 0, len(s) * 2)
+	// 	js.CopyBytesToJS(a, sliceToByteSlice(s))
+	// 	runtime.KeepAlive(s)
+	// 	buf := a.Get("buffer")
+	// 	return js.Global().Get("Int16Array").New(buf, a.Get("byteOffset"), a.Get("byteLength").Int()/2)
 	case []int32:
-		a := jsMemory.Call("subarray", 0, len(s) * 4)
-		js.CopyBytesToJS(a, sliceToByteSlice(s))
+		js.CopyBytesToJS(jsMemory, sliceToByteSlice(s))
 		runtime.KeepAlive(s)
-		buf := a.Get("buffer")
-		return js.Global().Get("Int32Array").New(buf, a.Get("byteOffset"), a.Get("byteLength").Int()/4)
+		// return jsMemoryInt32.Call("subarray", 0, len(s))
+		return jsMemoryInt32, len(s)
+
+		// a := jsMemory.Call("subarray", 0, len(s) * 4)
+		// js.CopyBytesToJS(a, sliceToByteSlice(s))
+		// runtime.KeepAlive(s)
+		// buf := a.Get("buffer")
+		// return int32Array.New(buf, a.Get("byteOffset"), a.Get("byteLength").Int()/4)
 	case []uint8:
-		a := jsMemory.Call("subarray", 0, len(s))
-		js.CopyBytesToJS(a, s)
+		js.CopyBytesToJS(jsMemory, s)
 		runtime.KeepAlive(s)
-		return a
-	case []uint16:
-		a := jsMemory.Call("subarray", 0, len(s) * 2)
-		js.CopyBytesToJS(a, sliceToByteSlice(s))
-		runtime.KeepAlive(s)
-		buf := a.Get("buffer")
-		return js.Global().Get("Uint16Array").New(buf, a.Get("byteOffset"), a.Get("byteLength").Int()/2)
+		// return jsMemory.Call("subarray", 0, len(s))
+		return jsMemory, len(s)
+
+	// case []uint16:
+	// 	a := jsMemory.Call("subarray", 0, len(s) * 2)
+	// 	js.CopyBytesToJS(a, sliceToByteSlice(s))
+	// 	runtime.KeepAlive(s)
+	// 	buf := a.Get("buffer")
+	// 	return js.Global().Get("Uint16Array").New(buf, a.Get("byteOffset"), a.Get("byteLength").Int()/2)
 	case []uint32:
-		a := jsMemory.Call("subarray", 0, len(s) * 4)
-		js.CopyBytesToJS(a, sliceToByteSlice(s))
+		js.CopyBytesToJS(jsMemory, sliceToByteSlice(s))
 		runtime.KeepAlive(s)
-		buf := a.Get("buffer")
-		return js.Global().Get("Uint32Array").New(buf, a.Get("byteOffset"), a.Get("byteLength").Int()/4)
+		// return jsMemoryUint32.Call("subarray", 0, len(s))
+		return jsMemoryUint32, len(s)
+
+		// a := jsMemory.Call("subarray", 0, len(s) * 4)
+		// js.CopyBytesToJS(a, sliceToByteSlice(s))
+		// runtime.KeepAlive(s)
+		// buf := a.Get("buffer")
+		// return js.Global().Get("Uint32Array").New(buf, a.Get("byteOffset"), a.Get("byteLength").Int()/4)
 	case []float32:
-		a := jsMemory.Call("subarray", 0, len(s) * 4)
-		js.CopyBytesToJS(a, sliceToByteSlice(s))
+		js.CopyBytesToJS(jsMemory, sliceToByteSlice(s))
 		runtime.KeepAlive(s)
-		buf := a.Get("buffer")
-		return js.Global().Get("Float32Array").New(buf, a.Get("byteOffset"), a.Get("byteLength").Int()/4)
-	case []float64:
-		a := jsMemory.Call("subarray", 0, len(s) * 8)
-		js.CopyBytesToJS(a, sliceToByteSlice(s))
-		runtime.KeepAlive(s)
-		buf := a.Get("buffer")
-		return js.Global().Get("Float64Array").New(buf, a.Get("byteOffset"), a.Get("byteLength").Int()/8)
+		// return jsMemoryFloat32.Call("subarray", 0, len(s))
+		return jsMemoryFloat32, len(s)
+
+		// a := jsMemory.Call("subarray", 0, len(s) * 4)
+		// js.CopyBytesToJS(a, sliceToByteSlice(s))
+		// runtime.KeepAlive(s)
+		// buf := a.Get("buffer")
+		// return float32Array.New(buf, a.Get("byteOffset"), a.Get("byteLength").Int()/4)
+	// case []float64:
+	// 	a := jsMemory.Call("subarray", 0, len(s) * 8)
+	// 	js.CopyBytesToJS(a, sliceToByteSlice(s))
+	// 	runtime.KeepAlive(s)
+	// 	buf := a.Get("buffer")
+	// 	return js.Global().Get("Float64Array").New(buf, a.Get("byteOffset"), a.Get("byteLength").Int()/8)
 	default:
 		panic(fmt.Sprintf("jsutil: unexpected value at SliceToTypedArray: %T", s))
 	}
 }
 
 func GenVertexArrays() Buffer {
+	return Buffer{Value: fnCreateVertexArray.Invoke()}
 	// if webgl1Mode {
 	// 	return CreateBuffer()
 	// }
-	return Buffer{Value: c.Call("createVertexArray")}
 }
 
 // TODO: right now I force you to make them 1 at a time
@@ -185,25 +277,36 @@ func GenBuffers() Buffer {
 }
 
 func BindVertexArray(b Buffer) {
+	fnBindVertexArray.Invoke(b.Value)
+
 	// if webgl1Mode {
 	// 	BindBuffer(ARRAY_BUFFER, b)
 	// 	return
 	// }
-	c.Call("bindVertexArray", b.Value)
 }
 
 func DeleteBuffers(b Buffer) {
-	c.Call("deleteBuffer", b.Value)
-	//	gl.DeleteBuffers(1, &v.Value)
+	fnDeleteBuffer.Invoke(b.Value)
+	// c.Call("deleteBuffer", b.Value)
 }
 
 func DeleteVertexArrays(b Buffer) {
-	c.Call("deleteVertexArray", b.Value)
-	//	gl.DeleteVertexArrays(1, &v.Value)
+	fnDeleteVertexArray.Invoke(b.Value)
+	// c.Call("deleteVertexArray", b.Value)
 }
 
 func BufferData(target Enum, size int, data interface{}, usage Enum) {
-	c.Call("bufferData", int(target), SliceToTypedArray(data), int(usage))
+	if data == nil {
+		// Note: Webgl2 only
+		fnBufferData.Invoke(int(target), size, int(usage))
+		return
+	}
+
+	array, length := SliceToTypedArray(data)
+	subarray := array.Call("subarray", 0, length)
+	fnBufferData.Invoke(int(target), subarray, int(usage))
+
+	// c.Call("bufferData", int(target), SliceToTypedArray(data), int(usage))
 // 	c.Call("bufferData", int(target), SliceToTypedArray(data), int(usage))
 	//	gl.BufferData(uint32(target), size, data, uint32(usage))
 }
@@ -221,12 +324,14 @@ func BlitFramebuffer(srcX0 int32, srcY0 int32, srcX1 int32, srcY1 int32, dstX0 i
 // 	return gl.Ptr(data)
 // }
 
-func DrawBuffer(target Enum) {
-	// TODO - revisit, for some reason drawBuffers here takes an array of ints
-	slice := []int32{int32(target)}
-	c.Call("drawBuffers", SliceToTypedArray(slice))
-	//	gl.DrawBuffer(uint32(target))
-}
+// func DrawBuffer(target Enum) {
+// 	// TODO - revisit, for some reason drawBuffers here takes an array of ints
+// 	slice := []int32{int32(target)}
+// 	array, length := SliceToTypedArray(slice)
+// 	subarray := array.Call("subarray", 0, length)
+// 	c.Call("drawBuffers", subarray)
+// 	//	gl.DrawBuffer(uint32(target))
+// }
 
 func ReadBuffer(target Enum) {
 	c.Call("readBuffer", int(target))
@@ -251,11 +356,13 @@ func BindAttribLocation(p Program, a Attrib, name string) {
 }
 
 func BindBuffer(target Enum, b Buffer) {
-	c.Call("bindBuffer", int(target), b.Value)
+	fnBindBuffer.Invoke(int(target), b.Value)
+	// c.Call("bindBuffer", int(target), b.Value)
 }
 
 func BindFramebuffer(target Enum, fb Framebuffer) {
-	c.Call("bindFramebuffer", int(target), fb.Value)
+	fnBindFramebuffer.Invoke(int(target), fb.Value)
+	// c.Call("bindFramebuffer", int(target), fb.Value)
 }
 
 func BindRenderbuffer(target Enum, rb Renderbuffer) {
@@ -263,7 +370,8 @@ func BindRenderbuffer(target Enum, rb Renderbuffer) {
 }
 
 func BindTexture(target Enum, t Texture) {
-	c.Call("bindTexture", int(target), t.Value)
+	fnBindTexture.Invoke(int(target), t.Value)
+	// c.Call("bindTexture", int(target), t.Value)
 }
 
 func BlendColor(red, green, blue, alpha float32) {
@@ -290,41 +398,67 @@ func BlendFuncSeparate(sfactorRGB, dfactorRGB, sfactorAlpha, dfactorAlpha Enum) 
 // 	c.Call("bufferData", int(target), SliceToTypedArray(data), int(usage))
 // }
 
-func BufferInit(target Enum, size int, usage Enum) {
-	c.Call("bufferData", int(target), size, int(usage))
+// func BufferInit(target Enum, size int, usage Enum) {
+// 	c.Call("bufferData", int(target), size, int(usage))
+// }
+
+func BufferSubDataByte(target Enum, offset int, data []byte) {
+	js.CopyBytesToJS(jsMemory, data)
+	runtime.KeepAlive(data)
+	fnBufferSubData.Invoke(int(target), offset, jsMemory, 0, len(data))
+}
+
+func BufferSubDataUint32(target Enum, offset int, data []uint32) {
+	copyData := data
+	h := (*reflect.SliceHeader)(unsafe.Pointer(&copyData))
+	h.Len *= 4
+	h.Cap *= 4
+	byteData := *(*[]byte)(unsafe.Pointer(h))
+
+	js.CopyBytesToJS(jsMemory, byteData)
+	runtime.KeepAlive(byteData)
+	fnBufferSubData.Invoke(int(target), offset, jsMemoryUint32, 0, len(data))
 }
 
 func BufferSubData(target Enum, offset int, data interface{}) {
-	c.Call("bufferSubData", int(target), offset, SliceToTypedArray(data))
+	// c.Call("bufferSubData", int(target), offset, SliceToTypedArray(data))
+	array, length := SliceToTypedArray(data)
+	// subarray := array.Call("subarray", 0, length)
+	// fnBufferSubData.Invoke(int(target), offset, subarray)
+	fnBufferSubData.Invoke(int(target), offset, array, 0, length)
 }
 
-func GetBufferSubData(target Enum, offset int, data interface{}) {
-	c.Call("getBufferSubData", int(target), offset, SliceToTypedArray(data))
-	// size := 0
-	// // TODO - other types
-	// switch t := data.(type) {
-	// case *[]float32:
-	// 	size = len(*t) * 4
-	// 	c.Call("getBufferSubData", int(target), offset, SliceToTypedArray(data))
-	// 	// gl.GetBufferSubData(uint32(target), offset, size, gl.Ptr(*t))
-	// case *[]byte:
-	// 	size = len(*t)
-	// 	gl.GetBufferSubData(uint32(target), offset, size, gl.Ptr(*t))
-	// default:
-	// 	panic("Invalid data type!")
-	// }
-}
+// func GetBufferSubData(target Enum, offset int, data interface{}) {
+// 	array, length := SliceToTypedArray(data)
+// 	subarray := array.Call("subarray", 0, length)
+// 	c.Call("getBufferSubData", int(target), offset, subarray)
+// 	// size := 0
+// 	// // TODO - other types
+// 	// switch t := data.(type) {
+// 	// case *[]float32:
+// 	// 	size = len(*t) * 4
+// 	// 	c.Call("getBufferSubData", int(target), offset, SliceToTypedArray(data))
+// 	// 	// gl.GetBufferSubData(uint32(target), offset, size, gl.Ptr(*t))
+// 	// case *[]byte:
+// 	// 	size = len(*t)
+// 	// 	gl.GetBufferSubData(uint32(target), offset, size, gl.Ptr(*t))
+// 	// default:
+// 	// 	panic("Invalid data type!")
+// 	// }
+// }
 
 func CheckFramebufferStatus(target Enum) Enum {
 	return Enum(c.Call("checkFramebufferStatus", int(target)).Int())
 }
 
 func Clear(mask Enum) {
-	c.Call("clear", int(mask))
+	fnClear.Invoke(int(mask))
+	// c.Call("clear", int(mask))
 }
 
 func ClearColor(red, green, blue, alpha float32) {
-	c.Call("clearColor", red, green, blue, alpha)
+	fnClearColor.Invoke(red, green, blue, alpha)
+	// c.Call("clearColor", red, green, blue, alpha)
 }
 
 func ClearDepthf(d float32) {
@@ -344,11 +478,15 @@ func CompileShader(s Shader) {
 }
 
 func CompressedTexImage2D(target Enum, level int, internalformat Enum, width, height, border int, data interface{}) {
-	c.Call("compressedTexImage2D", int(target), level, internalformat, width, height, border, SliceToTypedArray(data))
+	array, length := SliceToTypedArray(data)
+	subarray := array.Call("subarray", 0, length)
+	c.Call("compressedTexImage2D", int(target), level, internalformat, width, height, border, subarray)
 }
 
 func CompressedTexSubImage2D(target Enum, level, xoffset, yoffset, width, height int, format Enum, data interface{}) {
-	c.Call("compressedTexSubImage2D", int(target), level, xoffset, yoffset, width, height, format, SliceToTypedArray(data))
+	array, length := SliceToTypedArray(data)
+	subarray := array.Call("subarray", 0, length)
+	c.Call("compressedTexSubImage2D", int(target), level, xoffset, yoffset, width, height, format, subarray)
 }
 
 func CopyTexImage2D(target Enum, level int, internalformat Enum, x, y, width, height, border int) {
@@ -360,7 +498,8 @@ func CopyTexSubImage2D(target Enum, level, xoffset, yoffset, x, y, width, height
 }
 
 func CreateBuffer() Buffer {
-	return Buffer{Value: c.Call("createBuffer")}
+	// return Buffer{Value: c.Call("createBuffer")}
+	return Buffer{Value: fnCreateBuffer.Invoke()}
 }
 
 func CreateFramebuffer() Framebuffer {
@@ -412,7 +551,8 @@ func DeleteTexture(v Texture) {
 }
 
 func DepthFunc(fn Enum) {
-	c.Call("depthFunc", int(fn))
+	fnDepthFunc.Invoke(int(fn))
+	// c.Call("depthFunc", int(fn))
 }
 
 func DepthMask(flag bool) {
@@ -428,7 +568,8 @@ func DetachShader(p Program, s Shader) {
 }
 
 func Disable(cap Enum) {
-	c.Call("disable", int(cap))
+	fnDisable.Invoke(int(cap))
+	// c.Call("disable", int(cap))
 }
 
 func DisableVertexAttribArray(a Attrib) {
@@ -441,15 +582,18 @@ func DrawArrays(mode Enum, first, count int) {
 
 // TODO - webgl1 won't work until I change all calls to this to use UNSIGNED_BYTE or UNSIGNED_SHORT as the type (ty Enum). https://registry.khronos.org/OpenGL-Refpages/es2.0/xhtml/glDrawElements.xml
 func DrawElements(mode Enum, count int, ty Enum, offset int) {
-	c.Call("drawElements", int(mode), count, int(ty), offset)
+	fnDrawElements.Invoke(int(mode), count, int(ty), offset)
+	// c.Call("drawElements", int(mode), count, int(ty), offset)
 }
 
 func Enable(cap Enum) {
-	c.Call("enable", int(cap))
+	fnEnable.Invoke(int(cap))
+	// c.Call("enable", int(cap))
 }
 
 func EnableVertexAttribArray(a Attrib) {
-	c.Call("enableVertexAttribArray", a.Value)
+	fnEnableVertexAttribArray.Invoke(a.Value)
+	// c.Call("enableVertexAttribArray", a.Value)
 }
 
 func Finish() {
@@ -496,7 +640,8 @@ func GetAttachedShaders(p Program) []Shader {
 }
 
 func GetAttribLocation(p Program, name string) Attrib {
-	return Attrib{Value: c.Call("getAttribLocation", p.Value, name).Int()}
+	return Attrib{Value: fnGetAttribLocation.Invoke(p.Value, name).Int()}
+	// return Attrib{Value: c.Call("getAttribLocation", p.Value, name).Int()}
 }
 
 func GetBooleanv(dst []bool, pname Enum) {
@@ -764,16 +909,26 @@ func StencilOpSeparate(face, sfail, dpfail, dppass Enum) {
 }
 
 func TexImage2D(target Enum, level int, width, height int, format Enum, ty Enum, data interface{}) {
-	c.Call("texImage2D", int(target), level, int(format), width, height, 0, int(format), int(ty), SliceToTypedArray(data))
+	array, length := SliceToTypedArray(data)
+	subarray := array.Call("subarray", 0, length)
+	c.Call("texImage2D", int(target), level, int(format), width, height, 0, int(format), int(ty), subarray)
 }
 
 func TexImage2DFull(target Enum, level int, format1 Enum, width, height int, format Enum, ty Enum, data interface{}) {
-	c.Call("texImage2D", int(target), level, int(format1), width, height, 0, int(format), int(ty), SliceToTypedArray(data))
+	array, length := SliceToTypedArray(data)
+	if !array.IsNull() {
+		subarray := array.Call("subarray", 0, length)
+		c.Call("texImage2D", int(target), level, int(format1), width, height, 0, int(format), int(ty), subarray)
+	} else {
+		c.Call("texImage2D", int(target), level, int(format1), width, height, 0, int(format), int(ty), nil)
+	}
 }
 
 
 func TexSubImage2D(target Enum, level int, x, y, width, height int, format, ty Enum, data interface{}) {
-	c.Call("texSubImage2D", int(target), level, x, y, width, height, format, int(ty), SliceToTypedArray(data))
+	array, length := SliceToTypedArray(data)
+	subarray := array.Call("subarray", 0, length)
+	c.Call("texSubImage2D", int(target), level, x, y, width, height, format, int(ty), subarray)
 }
 
 func TexParameterf(target, pname Enum, param float32) {
@@ -802,9 +957,11 @@ func Uniform1f(dst Uniform, v float32) {
 	c.Call("uniform1f", dst.Value, v)
 }
 
-func Uniform1fv(dst Uniform, src []float32) {
-	c.Call("uniform1fv", dst.Value, SliceToTypedArray(src))
-}
+// func Uniform1fv(dst Uniform, src []float32) {
+// 	array, length := SliceToTypedArray(src)
+// 	subarray := array.Call("subarray", 0, length)
+// 	c.Call("uniform1fv", dst.Value, subarray)
+// }
 
 func Uniform1i(dst Uniform, v int) {
 	c.Call("uniform1i", dst.Value, v)
@@ -819,7 +976,10 @@ func Uniform2f(dst Uniform, v0, v1 float32) {
 }
 
 func Uniform2fv(dst Uniform, src []float32) {
-	c.Call("uniform2fv", dst.Value, src)
+	// c.Call("uniform2fv", dst.Value, src)
+
+	SliceToTypedArray(src)
+	c.Call("uniform3fv", dst.Value, jsMemoryBufferVec2)
 }
 
 func Uniform2i(dst Uniform, v0, v1 int) {
@@ -835,7 +995,14 @@ func Uniform3f(dst Uniform, v0, v1, v2 float32) {
 }
 
 func Uniform3fv(dst Uniform, src []float32) {
-	c.Call("uniform3fv", dst.Value, SliceToTypedArray(src))
+	// c.Call("uniform3fv", dst.Value, src)
+
+	SliceToTypedArray(src)
+	c.Call("uniform3fv", dst.Value, jsMemoryBufferVec3)
+
+	// array, length := SliceToTypedArray(src)
+	// subarray := array.Call("subarray", 0, length)
+	// c.Call("uniform3fv", dst.Value, subarray)
 }
 
 func Uniform3i(dst Uniform, v0, v1, v2 int32) {
@@ -851,7 +1018,14 @@ func Uniform4f(dst Uniform, v0, v1, v2, v3 float32) {
 }
 
 func Uniform4fv(dst Uniform, src []float32) {
-	c.Call("uniform4fv", dst.Value, SliceToTypedArray(src)) // TODO - I think probably most uniforms need this
+	// c.Call("uniform4fv", dst.Value, src)
+
+	SliceToTypedArray(src)
+	c.Call("uniform3fv", dst.Value, jsMemoryBufferVec4)
+
+	// array, length := SliceToTypedArray(src)
+	// subarray := array.Call("subarray", 0, length)
+	// c.Call("uniform4fv", dst.Value, subarray) // TODO - I think probably most uniforms need this
 }
 
 func Uniform4i(dst Uniform, v0, v1, v2, v3 int32) {
@@ -862,16 +1036,25 @@ func Uniform4iv(dst Uniform, src []int32) {
 	c.Call("uniform4iv", dst.Value, src)
 }
 
-func UniformMatrix2fv(dst Uniform, src []float32) {
-	c.Call("uniformMatrix2fv", dst.Value, false, SliceToTypedArray(src))
-}
+// func UniformMatrix2fv(dst Uniform, src []float32) {
+// 	array, length := SliceToTypedArray(src)
+// 	subarray := array.Call("subarray", 0, length)
+// 	c.Call("uniformMatrix2fv", dst.Value, false, subarray)
+// }
 
-func UniformMatrix3fv(dst Uniform, src []float32) {
-	c.Call("uniformMatrix3fv", dst.Value, false, SliceToTypedArray(src))
-}
+// func UniformMatrix3fv(dst Uniform, src []float32) {
+// 	array, length := SliceToTypedArray(src)
+// 	subarray := array.Call("subarray", 0, length)
+// 	c.Call("uniformMatrix3fv", dst.Value, false, subarray)
+// }
 
 func UniformMatrix4fv(dst Uniform, src []float32) {
-	c.Call("uniformMatrix4fv", dst.Value, false, SliceToTypedArray(src))
+	SliceToTypedArray(src)
+	fnUniformMatrix4fv.Invoke(dst.Value, false, jsMemoryBufferMat4)
+
+	// array, length := SliceToTypedArray(src)
+	// subarray := array.Call("subarray", 0, length)
+	// c.Call("uniformMatrix4fv", dst.Value, false, subarray)
 }
 
 func UseProgram(p Program) {
@@ -919,7 +1102,8 @@ func VertexAttrib4fv(dst Attrib, src []float32) {
 }
 
 func VertexAttribPointer(dst Attrib, size int, ty Enum, normalized bool, stride, offset int) {
-	c.Call("vertexAttribPointer", dst.Value, size, int(ty), normalized, stride, offset)
+	fnVertexAttribPointer.Invoke(dst.Value, size, int(ty), normalized, stride, offset)
+	// c.Call("vertexAttribPointer", dst.Value, size, int(ty), normalized, stride, offset)
 }
 
 func VertexAttribIPointer(dst Attrib, size int, ty Enum, stride, offset int) {
@@ -927,5 +1111,6 @@ func VertexAttribIPointer(dst Attrib, size int, ty Enum, stride, offset int) {
 }
 
 func Viewport(x, y, width, height int) {
-	c.Call("viewport", x, y, width, height)
+	// c.Call("viewport", x, y, width, height)
+	fnViewport.Invoke(x, y, width, height)
 }

@@ -207,6 +207,15 @@ func BufferInit(target Enum, size int, usage Enum) {
 // 	gl.BufferSubData(uint32(target), offset, int(len(data)), gl.Ptr(&data[0]))
 // }
 
+func BufferSubDataUint32(target Enum, offset int, data []uint32) {
+	size := len(data) * 4
+	gl.BufferSubData(uint32(target), offset, size, gl.Ptr(&data[0]))
+}
+
+func BufferSubDataByte(target Enum, offset int, data []byte) {
+	gl.BufferSubData(uint32(target), offset, len(data), gl.Ptr(&data[0]))
+}
+
 func BufferSubData(target Enum, offset int, data interface{}) {
 	size := 0
 	// TODO - other types
